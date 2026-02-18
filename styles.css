@@ -1,0 +1,238 @@
+:root {
+    --bg-gradient: linear-gradient(135deg, #000000 0%, #1a1a1a 100%);
+    --glass-bg: rgba(20, 20, 20, 0.7);
+    --glass-border: rgba(255, 255, 255, 0.1);
+    --glass-shadow: 0 0 20px rgba(0, 242, 255, 0.1);
+    --text-color: #ffffff;
+    --text-muted: #a0a0a0;
+    --accent-color: #00f2ff;
+    --danger-color: #ff4b6b;
+    --success-color: #00ff88;
+}
+
+body {
+    background: var(--bg-gradient);
+    font-family: 'Poppins', sans-serif;
+    color: var(--text-color);
+    min-height: 100vh;
+    margin: 0;
+    overflow-x: hidden;
+}
+
+/* Efecto Glassmorphism Dark */
+.glass-panel {
+    background: var(--glass-bg);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--glass-border);
+    border-radius: 16px;
+    box-shadow: var(--glass-shadow);
+}
+
+/* Sidebar */
+.bg-dark {
+    background: rgba(10, 10, 10, 0.9) !important;
+    backdrop-filter: blur(15px);
+    border-right: 1px solid var(--glass-border);
+}
+
+.bg-dark h4 {
+    font-weight: 700;
+    letter-spacing: 1px;
+    margin-bottom: 20px;
+    background: linear-gradient(to right, #fff, var(--accent-color));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-shadow: 0 0 10px rgba(0, 242, 255, 0.5);
+}
+
+/* Sidebar Buttons */
+.bg-dark .btn {
+    background: transparent;
+    color: var(--text-muted);
+    border: 1px solid transparent;
+    margin-bottom: 15px;
+    transition: all 0.3s ease;
+    text-align: left;
+    padding-left: 20px;
+    font-weight: 500;
+}
+
+.bg-dark .btn:hover,
+.bg-dark .btn:focus {
+    background: rgba(0, 242, 255, 0.1);
+    border-color: var(--accent-color);
+    color: var(--accent-color);
+    box-shadow: 0 0 15px rgba(0, 242, 255, 0.4);
+    transform: translateX(5px);
+}
+
+/* Paneles */
+h3 {
+    font-weight: 600;
+    position: relative;
+    display: inline-block;
+    margin-bottom: 30px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}
+
+h3::after {
+    content: '';
+    position: absolute;
+    bottom: -8px;
+    left: 0;
+    width: 60px;
+    height: 3px;
+    background: var(--accent-color);
+    box-shadow: 0 0 10px var(--accent-color);
+}
+
+/* Tarjetas */
+.card,
+form.card {
+    background: linear-gradient(145deg, rgba(20, 20, 20, 0.9), rgba(30, 30, 30, 0.9)) !important;
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--glass-border);
+    border-radius: 20px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    color: white;
+    transition: all 0.3s ease;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+    border-color: var(--accent-color);
+    box-shadow: 0 0 20px rgba(0, 242, 255, 0.2);
+}
+
+/* Inputs */
+.form-control,
+.form-select {
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid #333;
+    color: white;
+    border-radius: 10px;
+}
+
+.form-control:focus,
+.form-select:focus {
+    background: rgba(0, 0, 0, 0.8);
+    border-color: var(--accent-color);
+    box-shadow: 0 0 10px rgba(0, 242, 255, 0.3);
+    color: white;
+}
+
+/* Tablas */
+.table {
+    border-collapse: separate;
+    border-spacing: 0 8px;
+    margin-top: 10px;
+    --bs-table-bg: transparent;
+    --bs-table-color: white;
+}
+
+.table thead {
+    background: rgba(0, 242, 255, 0.1);
+    color: var(--accent-color);
+}
+
+.table tbody tr {
+    background: rgba(30, 30, 30, 0.6);
+    transition: all 0.3s ease;
+    border: 1px solid transparent;
+}
+
+.table tbody tr:hover {
+    background: rgba(40, 40, 40, 0.9);
+    transform: scale(1.01);
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
+    border-left: 3px solid var(--accent-color);
+}
+
+/* Botones Acción */
+.btn-primary,
+.btn-danger,
+.btn-success {
+    border: none;
+    position: relative;
+    overflow: hidden;
+    z-index: 1;
+    font-weight: 600;
+}
+
+.btn-primary::before,
+.btn-danger::before,
+.btn-success::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: -1;
+    transition: opacity 0.3s ease;
+}
+
+.btn-primary {
+    background: var(--accent-color);
+    color: black;
+    box-shadow: 0 0 15px rgba(0, 242, 255, 0.4);
+}
+
+.btn-primary:hover {
+    box-shadow: 0 0 25px rgba(0, 242, 255, 0.6);
+    filter: brightness(1.2);
+}
+
+.btn-danger {
+    background: var(--danger-color);
+    color: white;
+    box-shadow: 0 0 15px rgba(255, 75, 107, 0.4);
+}
+
+.btn-success {
+    background: var(--success-color);
+    color: black;
+    box-shadow: 0 0 15px rgba(0, 255, 136, 0.4);
+}
+
+/* Gráfica Container */
+canvas {
+    background: rgba(10, 10, 10, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 20px;
+    padding: 15px;
+}
+
+/* Estados */
+.estado-encendido {
+    color: var(--success-color);
+    text-shadow: 0 0 10px var(--success-color);
+}
+
+.estado-apagado {
+    color: var(--danger-color);
+    text-shadow: 0 0 10px var(--danger-color);
+}
+
+/* Animaciones */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.fade-in-up {
+    animation: fadeInUp 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.flex-fill>div {
+    animation: fadeInUp 0.6s ease-out;
+}
