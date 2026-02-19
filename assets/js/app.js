@@ -1,6 +1,3 @@
-
-let editandoId = null;
-
 // MODO LOCAL - APP SIMPLIFICADA
 let chartInstance = null;
 let intervalo = null;
@@ -11,35 +8,28 @@ window.eliminar = eliminar;
 
 document.addEventListener("DOMContentLoaded", () => {
     cargarAdmin();
-    
+    iniciarMonitoreo();
 });
 
 // NAVEGACIÓN
 function mostrarPanel(panel) {
-
     // Ocultar todos
     document.getElementById("panel-admin").classList.add("d-none");
     document.getElementById("panel-control").classList.add("d-none");
     document.getElementById("panel-monitoreo").classList.add("d-none");
 
-    // Mostrar el panel seleccionado
+    // Mostrar actual con animación
     const active = document.getElementById("panel-" + panel);
     active.classList.remove("d-none");
+    active.classList.add("fade-in-up");
 
-    // Si entramos a monitoreo → iniciar intervalo
-    if (panel === "monitoreo") {
-        iniciarMonitoreo();
-    } 
-    // Si salimos de monitoreo → detener intervalo
-    else {
-        clearInterval(intervalo);
-    }
+    if (panel === "control") cargarControl();
 
-    if (panel === "control") {
-        cargarControl();
+    // Ajustar gráfica si vamos a monitoreo
+    if (panel === "monitoreo" && chartInstance) {
+        setTimeout(() => chartInstance.resize(), 50);
     }
 }
-
 
 // ADMIN
 async function cargarAdmin() {
@@ -52,11 +42,7 @@ async function cargarAdmin() {
             <td>${d.modo}</td>
             <td>${d.nivel_comida}</td>
             <td>${d.cantidad}g</td>
-            <td>
-    <button class="btn btn-warning btn-sm" onclick="editar('${d.id}')">Editar</button>
-    <button class="btn btn-danger btn-sm" onclick="eliminar('${d.id}')">Eliminar</button>
-</td>
-
+            <td><button class="btn btn-danger btn-sm" onclick="eliminar('${d.id}')">Eliminar</button></td>
         </tr>
     `).join('');
 }
@@ -71,13 +57,7 @@ document.getElementById("formDispositivo").addEventListener("submit", async (e) 
         cantidad: Number(document.getElementById("cantidad").value),
         ultima_dispensacion: new Date().toISOString()
     };
-    if (editandoId) {
-    await actualizarDispositivo(editandoId, nuevo);
-    editandoId = null;
-} else {
     await crearDispositivo(nuevo);
-}
-
     e.target.reset();
     cargarAdmin();
 });
@@ -85,18 +65,6 @@ document.getElementById("formDispositivo").addEventListener("submit", async (e) 
 async function eliminar(id) {
     await eliminarDispositivo(id);
     cargarAdmin();
-}
-async function editar(id) {
-    const data = await getDispositivos();
-    const dispositivo = data.find(d => d.id === id);
-
-    document.getElementById("nombre").value = dispositivo.nombre;
-    document.getElementById("estado").value = dispositivo.estado;
-    document.getElementById("modo").value = dispositivo.modo;
-    document.getElementById("nivel").value = dispositivo.nivel_comida;
-    document.getElementById("cantidad").value = dispositivo.cantidad;
-
-    editandoId = id;
 }
 
 // CONTROL
@@ -143,8 +111,7 @@ async function cargarMonitoreo() {
                 <td>${d.nombre}</td>
                 <td><span class="${d.estado === 'Encendido' ? 'estado-encendido' : 'estado-apagado'}">${d.estado}</span></td>
                 <td>${d.nivel_comida}</td>
-                <td>${new Date().toLocaleTimeString()}</td>
-
+                <td>${new Date(d.ultima_dispensacion).toLocaleTimeString()}</td>
             </tr>
         `).join('');
     }
