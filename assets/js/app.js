@@ -1,3 +1,6 @@
+let historialDispositivos = {};
+let intervaloMonitoreo = null;
+
 let editandoId = null;
 let intervalo = null;
 let chart = null;
@@ -14,9 +17,16 @@ function mostrarPanel(panel) {
 
     document.getElementById("panel-" + panel).classList.remove("d-none");
 
+    if (panel === "admin") cargarAdmin();
     if (panel === "control") cargarControl();
-    if (panel === "monitoreo") iniciarMonitoreo();
+
+    if (panel === "monitoreo") {
+        iniciarMonitoreoAutomatico();
+    } else {
+        if (intervaloMonitoreo) clearInterval(intervaloMonitoreo);
+    }
 }
+
 
 async function cargarAdmin() {
     const tabla = document.getElementById("tablaDispositivos");
@@ -121,21 +131,90 @@ async function cargarMonitoreo() {
     const data = await getDispositivos();
     const tabla = document.getElementById("tablaMonitoreo");
 
-    const ultimos = data.slice(0, 10);
+    data.forEach(d => {
 
-    tabla.innerHTML = ultimos.map(d => `
-        <tr class="fade-in-up">
-            <td>${d.nombre}</td>
-            <td class="${d.estado === "Encendido" ? "estado-encendido" : "estado-apagado"}">
-                ${d.estado}
-            </td>
-            <td>${d.nivel_comida}</td>
-            <td>${new Date(d.ultima_dispensacion).toLocaleTimeString()}</td>
-        </tr>
-    `).join('');
+        if (!historialDispositivos[d.id]) {
+            historialDispositivos[d.id] = [];
+        }
 
-    actualizarGrafica(ultimos);
+        const nuevoRegistro = {
+            nombre: d.nombre,
+            estado: d.estado,
+            nivel: d.nivel_comida,
+            hora: new Date().toLocaleTimeString()
+        };
+
+        historialDispositivos[d.id].unshift(nuevoRegistro);
+
+        if (historialDispositivos[d.id].length > 10) {
+            historialDispositivos[d.id].pop();
+        }
+
+        // 👇 ACTUALIZA LA GRAFICA CON EL PRIMER DISPOSITIVO
+        actualizarGraficaEnTiempoReal(d);
+    });
+
+    // 👇 Construcción visual acumulativa
+    let filas = "";
+
+    Object.values(historialDispositivos).forEach(lista => {
+        lista.forEach(reg => {
+            filas += `
+                <tr class="fade-in-up">
+                    <td>${reg.nombre}</td>
+                    <td class="${reg.estado === "Encendido" ? "estado-encendido" : "estado-apagado"}">
+                        ${reg.estado}
+                    </td>
+                    <td>${reg.nivel}</td>
+                    <td>${reg.hora}</td>
+                </tr>
+            `;
+        });
+    });
+
+    tabla.innerHTML = filas;
 }
+
+function crearGrafica() {
+    const ctx = document.getElementById("grafica").getContext("2d");
+
+    chart = new Chart(ctx, {
+        type: "line",
+        data: {
+            labels: [],
+            datasets: [{
+                label: "Nivel de comida (%)",
+                data: [],
+                tension: 0.4,
+                fill: true
+            }]
+        },
+        options: {
+            animation: {
+                duration: 800
+            },
+            plugins: {
+                legend: {
+                    labels: {
+                        color: "white"
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    ticks: { color: "white" }
+                },
+                y: {
+                    ticks: { color: "white" },
+                    min: 0,
+                    max: 100
+                }
+            }
+        }
+    });
+}
+
+
 
 function actualizarGrafica(data) {
     const ctx = document.getElementById("grafica");
@@ -169,4 +248,34 @@ function actualizarGrafica(data) {
             }
         }
     });
+}
+function actualizarGraficaEnTiempoReal(dispositivo) {
+    if (!chart) return;
+
+    const nivel =
+        dispositivo.nivel_comida === "Lleno" ? 100 :
+        dispositivo.nivel_comida === "Medio" ? 50 : 10;
+
+    chart.data.labels.push(new Date().toLocaleTimeString());
+    chart.data.datasets[0].data.push(nivel);
+
+    if (chart.data.labels.length > 10) {
+        chart.data.labels.shift();
+        chart.data.datasets[0].data.shift();
+    }
+
+    chart.update();
+}
+
+function iniciarMonitoreoAutomatico() {
+
+    if (intervaloMonitoreo) clearInterval(intervaloMonitoreo);
+
+    crearGrafica(); // 👈 crear gráfica al entrar
+
+    cargarMonitoreo();
+
+    intervaloMonitoreo = setInterval(() => {
+        cargarMonitoreo();
+    }, 2000);
 }
