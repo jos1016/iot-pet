@@ -236,3 +236,43 @@ canvas {
 .flex-fill>div {
     animation: fadeInUp 0.6s ease-out;
 }
+
+.nueva-fila {
+    animation: bajar 0.4s ease forwards;
+}
+
+@keyframes bajar {
+    from {
+        transform: translateY(-15px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+#tablaMonitoreo {
+    border-collapse: collapse;
+}
+
+#tablaMonitoreo tr {
+    transition: transform 0.3s ease;
+}
+
+.fila-animada {
+    animation: entradaSuave 0.35s ease forwards;
+    opacity: 0;
+}
+
+@keyframes entradaSuave {
+    from {
+        transform: translateY(-30px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+

@@ -1,16 +1,20 @@
-let historialDispositivos = {};
+let dispositivos = [];
+let indice = 0;
 let intervaloMonitoreo = null;
-
-let editandoId = null;
-let intervalo = null;
 let chart = null;
+let editandoId = null;
 
 document.addEventListener("DOMContentLoaded", () => {
     cargarAdmin();
-    iniciarMonitoreo();
 });
 
+
+// ============================
+// NAVEGACIÓN
+// ============================
+
 function mostrarPanel(panel) {
+
     document.getElementById("panel-admin").classList.add("d-none");
     document.getElementById("panel-control").classList.add("d-none");
     document.getElementById("panel-monitoreo").classList.add("d-none");
@@ -21,19 +25,24 @@ function mostrarPanel(panel) {
     if (panel === "control") cargarControl();
 
     if (panel === "monitoreo") {
-        iniciarMonitoreoAutomatico();
+        iniciarMonitoreo();
     } else {
         if (intervaloMonitoreo) clearInterval(intervaloMonitoreo);
     }
 }
 
 
+// ============================
+// ADMINISTRACIÓN
+// ============================
+
 async function cargarAdmin() {
+
     const tabla = document.getElementById("tablaDispositivos");
     const data = await getDispositivos();
 
     tabla.innerHTML = data.map(d => `
-        <tr class="fade-in-up">
+        <tr>
             <td>${d.nombre}</td>
             <td class="${d.estado === "Encendido" ? "estado-encendido" : "estado-apagado"}">
                 ${d.estado}
@@ -54,6 +63,7 @@ async function cargarAdmin() {
 }
 
 document.getElementById("formDispositivo").addEventListener("submit", async (e) => {
+
     e.preventDefault();
 
     const nuevo = {
@@ -82,6 +92,7 @@ async function eliminar(id) {
 }
 
 async function editar(id) {
+
     const data = await getDispositivos();
     const d = data.find(x => x.id === id);
 
@@ -94,12 +105,18 @@ async function editar(id) {
     editandoId = id;
 }
 
+
+// ============================
+// CONTROL
+// ============================
+
 async function cargarControl() {
+
     const data = await getDispositivos();
     const contenedor = document.getElementById("contenedorControl");
 
     contenedor.innerHTML = data.map(d => `
-        <div class="col-md-4 fade-in-up">
+        <div class="col-md-4">
             <div class="card p-4">
                 <h5>${d.nombre}</h5>
                 <p class="${d.estado === "Encendido" ? "estado-encendido" : "estado-apagado"}">
@@ -115,67 +132,76 @@ async function cargarControl() {
 }
 
 async function toggleEstado(id, estadoActual) {
+
     const nuevoEstado = estadoActual === "Encendido" ? "Apagado" : "Encendido";
+
     await actualizarDispositivo(id, { estado: nuevoEstado });
+
     cargarControl();
     cargarAdmin();
 }
 
-function iniciarMonitoreo() {
-    if (intervalo) clearInterval(intervalo);
-    cargarMonitoreo();
-    intervalo = setInterval(cargarMonitoreo, 2000);
+
+// ============================
+// MONITOREO
+// ============================
+
+async function iniciarMonitoreo() {
+
+    if (intervaloMonitoreo) clearInterval(intervaloMonitoreo);
+
+    dispositivos = await getDispositivos();
+    indice = 0;
+
+    if (!chart) crearGrafica();
+
+    intervaloMonitoreo = setInterval(() => {
+        insertarFila();
+    }, 2000);
 }
 
-async function cargarMonitoreo() {
-    const data = await getDispositivos();
-    const tabla = document.getElementById("tablaMonitoreo");
 
-    data.forEach(d => {
+function insertarFila() {
 
-        if (!historialDispositivos[d.id]) {
-            historialDispositivos[d.id] = [];
-        }
+    if (dispositivos.length === 0) return;
 
-        const nuevoRegistro = {
-            nombre: d.nombre,
-            estado: d.estado,
-            nivel: d.nivel_comida,
-            hora: new Date().toLocaleTimeString()
-        };
+    const dispositivo = dispositivos[indice];
+    const tbody = document.getElementById("tablaMonitoreo");
 
-        historialDispositivos[d.id].unshift(nuevoRegistro);
+    const fila = document.createElement("tr");
 
-        if (historialDispositivos[d.id].length > 10) {
-            historialDispositivos[d.id].pop();
-        }
+    const fechaHora = new Date().toLocaleString();
 
-        // 👇 ACTUALIZA LA GRAFICA CON EL PRIMER DISPOSITIVO
-        actualizarGraficaEnTiempoReal(d);
-    });
+    fila.innerHTML = `
+        <td>${dispositivo.nombre}</td>
+        <td class="${dispositivo.estado === "Encendido" ? "estado-encendido" : "estado-apagado"}">
+            ${dispositivo.estado}
+        </td>
+        <td>${dispositivo.nivel_comida}</td>
+        <td>${fechaHora}</td>
+    `;
 
-    // 👇 Construcción visual acumulativa
-    let filas = "";
+    // Insertar arriba
+    tbody.insertBefore(fila, tbody.firstChild);
 
-    Object.values(historialDispositivos).forEach(lista => {
-        lista.forEach(reg => {
-            filas += `
-                <tr class="fade-in-up">
-                    <td>${reg.nombre}</td>
-                    <td class="${reg.estado === "Encendido" ? "estado-encendido" : "estado-apagado"}">
-                        ${reg.estado}
-                    </td>
-                    <td>${reg.nivel}</td>
-                    <td>${reg.hora}</td>
-                </tr>
-            `;
-        });
-    });
+    // Mantener solo 10 visibles
+    if (tbody.rows.length > 10) {
+        tbody.deleteRow(10);
+    }
 
-    tabla.innerHTML = filas;
+    actualizarGrafica(dispositivo);
+
+    indice++;
+    if (indice >= dispositivos.length) indice = 0;
 }
+
+
+// ============================
+// GRÁFICA
+// ============================
 
 function crearGrafica() {
+
     const ctx = document.getElementById("grafica").getContext("2d");
 
     chart = new Chart(ctx, {
@@ -185,25 +211,20 @@ function crearGrafica() {
             datasets: [{
                 label: "Nivel de comida (%)",
                 data: [],
+                borderWidth: 2,
                 tension: 0.4,
-                fill: true
+                fill: false
             }]
         },
         options: {
-            animation: {
-                duration: 800
-            },
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: { duration: 400 },
             plugins: {
-                legend: {
-                    labels: {
-                        color: "white"
-                    }
-                }
+                legend: { labels: { color: "white" } }
             },
             scales: {
-                x: {
-                    ticks: { color: "white" }
-                },
+                x: { ticks: { color: "white" } },
                 y: {
                     ticks: { color: "white" },
                     min: 0,
@@ -215,67 +236,19 @@ function crearGrafica() {
 }
 
 
-
-function actualizarGrafica(data) {
-    const ctx = document.getElementById("grafica");
-
-    const niveles = data.map(d =>
-        d.nivel_comida === "Lleno" ? 100 :
-        d.nivel_comida === "Medio" ? 50 : 10
-    );
-
-    if (chart) chart.destroy();
-
-    chart = new Chart(ctx, {
-        type: "bar",
-        data: {
-            labels: data.map(d => d.nombre),
-            datasets: [{
-                label: "Nivel de comida (%)",
-                data: niveles,
-                backgroundColor: "#00f2ff"
-            }]
-        },
-        options: {
-            plugins: {
-                legend: {
-                    labels: { color: "white" }
-                }
-            },
-            scales: {
-                x: { ticks: { color: "white" } },
-                y: { ticks: { color: "white" } }
-            }
-        }
-    });
-}
-function actualizarGraficaEnTiempoReal(dispositivo) {
-    if (!chart) return;
+function actualizarGrafica(dispositivo) {
 
     const nivel =
         dispositivo.nivel_comida === "Lleno" ? 100 :
         dispositivo.nivel_comida === "Medio" ? 50 : 10;
 
-    chart.data.labels.push(new Date().toLocaleTimeString());
-    chart.data.datasets[0].data.push(nivel);
+    chart.data.labels.unshift(new Date().toLocaleTimeString());
+    chart.data.datasets[0].data.unshift(nivel);
 
     if (chart.data.labels.length > 10) {
-        chart.data.labels.shift();
-        chart.data.datasets[0].data.shift();
+        chart.data.labels.pop();
+        chart.data.datasets[0].data.pop();
     }
 
     chart.update();
-}
-
-function iniciarMonitoreoAutomatico() {
-
-    if (intervaloMonitoreo) clearInterval(intervaloMonitoreo);
-
-    crearGrafica(); // 👈 crear gráfica al entrar
-
-    cargarMonitoreo();
-
-    intervaloMonitoreo = setInterval(() => {
-        cargarMonitoreo();
-    }, 2000);
 }
