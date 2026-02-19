@@ -27,3 +27,10 @@ async function eliminarDispositivo(id) {
         method: "DELETE"
     });
 }
+function mostrarPanel(panel) {
+    document.getElementById("panel-admin").classList.add("d-none");
+    document.getElementById("panel-control").classList.add("d-none");
+    document.getElementById("panel-monitoreo").classList.add("d-none");
+
+    document.getElementById("panel-" + panel).classList.remove("d-none");
+}
