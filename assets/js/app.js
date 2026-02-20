@@ -149,7 +149,7 @@ async function iniciarMonitoreo() {
     await ejecutarCicloMonitoreo();
 
     // Ciclo repetitivo (4s para dar tiempo a animaciones)
-    intervaloMonitoreo = setInterval(ejecutarCicloMonitoreo, 4000);
+    intervaloMonitoreo = setInterval(ejecutarCicloMonitoreo, 2000);
 }
 
 async function ejecutarCicloMonitoreo() {
@@ -176,6 +176,32 @@ async function ejecutarCicloMonitoreo() {
     }
 
     actualizarGraficaTodos();
+}
+function actualizarTablaMonitoreo(datos) {
+
+    const tabla = document.getElementById("tablaMonitoreo");
+
+    // Creamos todo el HTML en memoria primero
+    let html = "";
+
+    datos.forEach(d => {
+
+        const fecha = d.ultimaDispensacion
+            ? new Date(d.ultimaDispensacion).toLocaleString()
+            : "Sin registro";
+
+        html += `
+            <tr>
+                <td>${d.nombre}</td>
+                <td>${d.estado}</td>
+                <td>${d.nivel}</td>
+                <td>${fecha}</td>
+            </tr>
+        `;
+    });
+
+    // Lo insertamos TODO de golpe (sin efecto progresivo)
+    tabla.innerHTML = html;
 }
 
 function agregarFilaAnimada(registro) {
