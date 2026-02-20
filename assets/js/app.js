@@ -1,20 +1,19 @@
 let dispositivos = [];
-let indice = 0;
+let historialGlobal = [];
 let intervaloMonitoreo = null;
 let chart = null;
 let editandoId = null;
+let lastNotificationState = {}; // Store last notified level for each device
 
 document.addEventListener("DOMContentLoaded", () => {
     cargarAdmin();
 });
-
 
 // ============================
 // NAVEGACIÓN
 // ============================
 
 function mostrarPanel(panel) {
-
     document.getElementById("panel-admin").classList.add("d-none");
     document.getElementById("panel-control").classList.add("d-none");
     document.getElementById("panel-monitoreo").classList.add("d-none");
@@ -24,22 +23,18 @@ function mostrarPanel(panel) {
     if (panel === "admin") cargarAdmin();
     if (panel === "control") cargarControl();
 
-    if (panel === "monitoreo") {
-        iniciarMonitoreo();
-    } else {
-        if (intervaloMonitoreo) clearInterval(intervaloMonitoreo);
-    }
+    if (panel === "monitoreo") iniciarMonitoreo();
+    else if (intervaloMonitoreo) clearInterval(intervaloMonitoreo);
 }
-
 
 // ============================
 // ADMINISTRACIÓN
 // ============================
 
 async function cargarAdmin() {
-
     const tabla = document.getElementById("tablaDispositivos");
     const data = await getDispositivos();
+    dispositivos = data;
 
     tabla.innerHTML = data.map(d => `
         <tr>
@@ -63,15 +58,14 @@ async function cargarAdmin() {
 }
 
 document.getElementById("formDispositivo").addEventListener("submit", async (e) => {
-
     e.preventDefault();
 
     const nuevo = {
-        nombre: nombre.value,
-        estado: estado.value,
-        modo: modo.value,
-        nivel_comida: nivel.value,
-        cantidad: Number(cantidad.value),
+        nombre: document.getElementById("nombre").value,
+        estado: document.getElementById("estado").value,
+        modo: document.getElementById("modo").value,
+        nivel_comida: document.getElementById("nivel").value,
+        cantidad: Number(document.getElementById("cantidad").value),
         ultima_dispensacion: new Date().toISOString()
     };
 
@@ -92,26 +86,23 @@ async function eliminar(id) {
 }
 
 async function editar(id) {
-
     const data = await getDispositivos();
     const d = data.find(x => x.id === id);
 
-    nombre.value = d.nombre;
-    estado.value = d.estado;
-    modo.value = d.modo;
-    nivel.value = d.nivel_comida;
-    cantidad.value = d.cantidad;
+    document.getElementById("nombre").value = d.nombre;
+    document.getElementById("estado").value = d.estado;
+    document.getElementById("modo").value = d.modo;
+    document.getElementById("nivel").value = d.nivel_comida;
+    document.getElementById("cantidad").value = d.cantidad;
 
     editandoId = id;
 }
-
 
 // ============================
 // CONTROL
 // ============================
 
 async function cargarControl() {
-
     const data = await getDispositivos();
     const contenedor = document.getElementById("contenedorControl");
 
@@ -132,67 +123,134 @@ async function cargarControl() {
 }
 
 async function toggleEstado(id, estadoActual) {
-
     const nuevoEstado = estadoActual === "Encendido" ? "Apagado" : "Encendido";
-
     await actualizarDispositivo(id, { estado: nuevoEstado });
-
     cargarControl();
     cargarAdmin();
 }
-
 
 // ============================
 // MONITOREO
 // ============================
 
 async function iniciarMonitoreo() {
-
     if (intervaloMonitoreo) clearInterval(intervaloMonitoreo);
 
     dispositivos = await getDispositivos();
-    indice = 0;
 
-    if (!chart) crearGrafica();
+    // Reiniciar historial visual
+    const tbody = document.getElementById("tablaMonitoreo");
+    tbody.innerHTML = "";
 
-    intervaloMonitoreo = setInterval(() => {
-        insertarFila();
-    }, 2000);
+    if (chart) chart.destroy();
+    crearGrafica();
+
+    // Primera ejecución
+    await ejecutarCicloMonitoreo();
+
+    // Ciclo repetitivo (4s para dar tiempo a animaciones)
+    intervaloMonitoreo = setInterval(ejecutarCicloMonitoreo, 4000);
 }
 
-
-function insertarFila() {
-
-    if (dispositivos.length === 0) return;
-
-    const dispositivo = dispositivos[indice];
-    const tbody = document.getElementById("tablaMonitoreo");
-
-    const fila = document.createElement("tr");
-
+async function ejecutarCicloMonitoreo() {
+    dispositivos = await getDispositivos();
+    // SHOW DATE AND TIME
     const fechaHora = new Date().toLocaleString();
 
-    fila.innerHTML = `
-        <td>${dispositivo.nombre}</td>
-        <td class="${dispositivo.estado === "Encendido" ? "estado-encendido" : "estado-apagado"}">
-            ${dispositivo.estado}
-        </td>
-        <td>${dispositivo.nivel_comida}</td>
-        <td>${fechaHora}</td>
-    `;
+    // Preparar nuevos registros
+    const nuevosRegistros = dispositivos.map(d => ({
+        id: d.id,
+        nombre: d.nombre,
+        estado: d.estado,
+        nivel: d.nivel_comida,
+        fecha: fechaHora
+    }));
 
-    // Insertar arriba
-    tbody.insertBefore(fila, tbody.firstChild);
+    // Verificar Alertas
+    verificarAlertas(dispositivos);
 
-    // Mantener solo 10 visibles
-    if (tbody.rows.length > 10) {
-        tbody.deleteRow(10);
+    // Insertar uno por uno con delay
+    for (const reg of nuevosRegistros) {
+        agregarFilaAnimada(reg);
+        await new Promise(r => setTimeout(r, 500)); // 0.5s delay entre cada fila
     }
 
-    actualizarGrafica(dispositivo);
+    actualizarGraficaTodos();
+}
 
-    indice++;
-    if (indice >= dispositivos.length) indice = 0;
+function agregarFilaAnimada(registro) {
+    const tbody = document.getElementById("tablaMonitoreo");
+
+    // Crear fila
+    const row = document.createElement("tr");
+    row.classList.add("push-in");
+    row.innerHTML = `
+        <td>${registro.nombre}</td>
+        <td class="${registro.estado === "Encendido" ? "estado-encendido" : "estado-apagado"}">
+            ${registro.estado}
+        </td>
+        <td>${registro.nivel}</td>
+        <td>${registro.fecha}</td>
+    `;
+
+    // Insertar al principio (Push effect)
+    tbody.prepend(row);
+
+    // Mantener limite de 10 en el DOM (elimina el último)
+    if (tbody.children.length > 10) {
+        tbody.lastElementChild.remove();
+    }
+}
+
+// ============================
+// NOTIFICACIONES
+// ============================
+
+function verificarAlertas(dispositivos) {
+    dispositivos.forEach(d => {
+        const nivel = d.nivel_comida; // "Lleno", "Medio", "Vacio"
+        const last = lastNotificationState[d.id];
+
+        // Solo notificar si el estado ha cambiado
+        if (nivel !== last) {
+            if (nivel === "Vacio") {
+                mostrarNotificacion(`⚠️ <strong>${d.nombre}</strong> está VACÍO. Por favor rellénalo.`, "danger");
+            } else if (nivel === "Lleno") {
+                mostrarNotificacion(`✅ <strong>${d.nombre}</strong> está LLENO.`, "success");
+            } else if (nivel === "Medio" && last === "Lleno") {
+                // Opcional: Notificar cuando baja a medio
+                // mostrarNotificacion(`ℹ️ ${d.nombre} está a medio nivel.`, "warning");
+            }
+
+            // Actualizar estado
+            lastNotificationState[d.id] = nivel;
+        }
+    });
+}
+
+function mostrarNotificacion(mensaje, tipo = "info") {
+    const container = document.getElementById("notification-container");
+    const toast = document.createElement("div");
+
+    toast.className = `toast-notification ${tipo}`;
+
+    let icon = "ℹ️";
+    if (tipo === "success") icon = "✅";
+    if (tipo === "danger") icon = "⚠️";
+    if (tipo === "warning") icon = "🔸";
+
+    toast.innerHTML = `
+        <span class="icon">${icon}</span>
+        <span class="message">${mensaje}</span>
+    `;
+
+    container.appendChild(toast);
+
+    // Remover después de 3 segundos
+    setTimeout(() => {
+        toast.style.animation = "slideOutRight 0.4s ease-in forwards";
+        setTimeout(() => toast.remove(), 400);
+    }, 4000);
 }
 
 
@@ -201,54 +259,85 @@ function insertarFila() {
 // ============================
 
 function crearGrafica() {
-
     const ctx = document.getElementById("grafica").getContext("2d");
 
     chart = new Chart(ctx, {
-        type: "line",
+        type: "bar",
         data: {
-            labels: [],
+            labels: dispositivos.map(d => d.nombre),
             datasets: [{
-                label: "Nivel de comida (%)",
-                data: [],
-                borderWidth: 2,
-                tension: 0.4,
-                fill: false
+                label: "Nivel de Comida",
+                data: dispositivos.map(d => d.nivel_comida === "Lleno" ? 100 : d.nivel_comida === "Medio" ? 50 : 10),
+                backgroundColor: dispositivos.map(d => {
+                    if (d.nivel_comida === "Lleno") return "#00ff88"; // Green
+                    if (d.nivel_comida === "Medio") return "#FFCE56"; // Yellow
+                    return "#ff4b6b"; // Red
+                }),
+                borderColor: "#ffffff",
+                borderWidth: 1
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            animation: { duration: 400 },
+            animation: {
+                duration: 500
+            },
             plugins: {
-                legend: { labels: { color: "white" } }
+                legend: { labels: { color: "white" } },
+                tooltip: {
+                    callbacks: {
+                        label: function (context) {
+                            const val = context.raw;
+                            let label = val === 100 ? "Lleno" : val === 50 ? "Medio" : "Vacio";
+                            return `Nivel: ${label} (${val}%)`;
+                        }
+                    }
+                }
             },
             scales: {
-                x: { ticks: { color: "white" } },
-                y: {
+                x: {
                     ticks: { color: "white" },
+                    grid: { color: "rgba(255,255,255,0.1)" }
+                },
+                y: {
+                    ticks: {
+                        color: "white",
+                        callback: function (value) {
+                            if (value === 100) return "Lleno";
+                            if (value === 50) return "Medio";
+                            if (value === 10) return "Vacio";
+                            return "";
+                        }
+                    },
                     min: 0,
-                    max: 100
+                    max: 100,
+                    grid: { color: "rgba(255,255,255,0.1)" }
                 }
             }
         }
     });
 }
 
+function actualizarGraficaTodos() {
+    if (!chart) return;
 
-function actualizarGrafica(dispositivo) {
+    // Update labels
+    chart.data.labels = dispositivos.map(d => d.nombre);
 
-    const nivel =
-        dispositivo.nivel_comida === "Lleno" ? 100 :
-        dispositivo.nivel_comida === "Medio" ? 50 : 10;
+    // Update data
+    const newData = dispositivos.map(d => {
+        return d.nivel_comida === "Lleno" ? 100 : d.nivel_comida === "Medio" ? 50 : 10;
+    });
 
-    chart.data.labels.unshift(new Date().toLocaleTimeString());
-    chart.data.datasets[0].data.unshift(nivel);
+    const newColors = dispositivos.map(d => {
+        if (d.nivel_comida === "Lleno") return "#00ff88";
+        if (d.nivel_comida === "Medio") return "#FFCE56";
+        return "#ff4b6b";
+    });
 
-    if (chart.data.labels.length > 10) {
-        chart.data.labels.pop();
-        chart.data.datasets[0].data.pop();
-    }
+    chart.data.datasets[0].data = newData;
+    chart.data.datasets[0].backgroundColor = newColors;
 
     chart.update();
 }
