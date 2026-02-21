@@ -317,3 +317,13 @@ canvas {
         opacity: 0;
     }
 }
+footer {
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+    z-index: 999;
+}
+
+.flex-fill {
+    padding-bottom: 60px;
+}
